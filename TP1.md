@@ -21,4 +21,3 @@ Le challenge était évalué sur des performances en reconnaissance d'entités n
 5. Est un corpus monolingue ou multilingue ?
 
 Comme indiqué précédemment, c'est donc un corpus multilingue (Anglais & Allemand).
-
