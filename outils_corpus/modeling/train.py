@@ -171,8 +171,6 @@ def train_models() -> None:
 		results.append(benchmark_clf(clf, X_train, X_test, y_train, y_test, feature_names, target_names, name))
 
 	# Plot the score/training trade-off
-	indices = np.arange(len(results))
-
 	results = [[x[i] for x in results] for i in range(4)]
 
 	clf_names, score, training_time, test_time = results
