@@ -3,6 +3,7 @@
 from contextlib import chdir
 import subprocess
 
+from loguru import logger
 import niquests
 import typer
 
