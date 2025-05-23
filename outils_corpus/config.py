@@ -22,6 +22,9 @@ PG_MIRROR = EXTERNAL_DATA_DIR / "pg"
 PG_RDF_TARBALL = PG_MIRROR / "rdf-files.tar.bz2"
 PG_METADATA_DIR = EXTERNAL_DATA_DIR / "metadata"
 
+# Full dataset
+FULL_DATASET = PROCESSED_DATA_DIR / "pg-fr-books-full.parquet"
+
 MODELS_DIR = PROJ_ROOT / "models"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
