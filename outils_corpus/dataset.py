@@ -56,7 +56,7 @@ def parse_pg_listing() -> list[str]:
 	# It's just a bunch of links to zip archives in a minimal HTML page, so, bs4 FTW
 	PG_LISTING = PG_MIRROR / "www.gutenberg.org" / "robot"
 	books = []
-	for root, dirs, files in PG_LISTING.walk(top_down=False):
+	for root, dirs, files in PG_LISTING.walk():
 		for name in tqdm(files):
 			input_html = root / name
 			logger.opt(colors=True).info(f"Parsing <blue>{input_html.name}</blue>")
@@ -108,28 +108,45 @@ def extract_pg_metadata():
 	"""
 	Extract RDF metadata for the subset of the PG catalog we downloaded
 	"""
-	files = []
-	for root, dirs, files in RAW_DATA_DIR.walk(top_down=False):
+
+	# NOTE: We use a set, as we may have multiple copies of the same pg ebook number (in different encodings)
+	metadata_files = set()
+	for root, dirs, files in RAW_DATA_DIR.walk():
 		for name in files:
 			book = root / name
 			if book.suffix == ".txt":
 				# We need the PG ebook number, which is basically the first part of the filename's stem
+				# (What comes after the dash denotes the character encoding)
 				pg_num = book.stem.split("-")[0]
 				# Match the RDF tarball directory layout
-				files.append(f"cache/epub/{pg_num}/pg{pg_num}.rdf")
+				metadata_files.add(f"cache/epub/{pg_num}/pg{pg_num}.rdf")
+			else:
+				logger.opt(colors=True).warning(f"Skipped <yellow>{book}</yellow>")
 
-	# pprint(sorted(files))
+	# pprint(sorted(metadata_files))
 
 	# We only care about our catalog subset
 	def catalog_subset(members):
 		for tarinfo in members:
-			if tarinfo.isreg() and tarinfo.name in files:
+			if tarinfo.isreg() and tarinfo.name in metadata_files:
 				# Junk the path while we're here...
 				yield tarinfo.replace(name=tarinfo.name.split("/")[-1])
 
 	logger.opt(colors=True).info("Extracting RDF metadata. . .")
 	with tarfile.open(PG_RDF_TARBALL) as tar:
 		tar.extractall(path=PG_METADATA_DIR, members=catalog_subset(tar), filter="data")
+
+	# Double-check that we didn't miss anything
+	extracted_files = set()
+	for root, dirs, files in PG_METADATA_DIR.walk():
+		for name in files:
+			filename = root / name
+			extracted_files.add(filename.name)
+
+	wanted_files = {f.split("/")[-1] for f in metadata_files}
+	logger.info(f"Wanted {len(wanted_files)} files, got {len(extracted_files)}")
+	# Print the difference
+	# pprint(wanted_files - extracted_files)
 
 
 @app.command()
