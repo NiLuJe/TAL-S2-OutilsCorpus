@@ -20,6 +20,7 @@ EXTERNAL_DATA_DIR = DATA_DIR / "external"
 PG_MIRROR = EXTERNAL_DATA_DIR / "pg"
 # PG RDF archive
 PG_RDF_TARBALL = PG_MIRROR / "rdf-files.tar.bz2"
+PG_METADATA_DIR = EXTERNAL_DATA_DIR / "metadata"
 
 MODELS_DIR = PROJ_ROOT / "models"
 

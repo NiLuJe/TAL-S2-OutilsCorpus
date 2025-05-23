@@ -3,6 +3,7 @@
 from contextlib import chdir
 import io
 import subprocess
+import tarfile
 import zipfile
 
 from bs4 import BeautifulSoup
@@ -12,7 +13,7 @@ from rich.pretty import pprint
 from tqdm.rich import tqdm
 import typer
 
-from outils_corpus.config import PG_MIRROR, PG_RDF_TARBALL, RAW_DATA_DIR
+from outils_corpus.config import PG_METADATA_DIR, PG_MIRROR, PG_RDF_TARBALL, RAW_DATA_DIR
 
 app = typer.Typer()
 
@@ -103,14 +104,44 @@ def download_pg_books(books: list[str]):
 				logger.opt(colors=True).warning(f"Failed to unpack <red>{filename}</red>")
 
 
+def extract_pg_metadata():
+	"""
+	Extract RDF metadata for the subset of the PG catalog we downloaded
+	"""
+	files = []
+	for root, dirs, files in RAW_DATA_DIR.walk(top_down=False):
+		for name in files:
+			book = root / name
+			if book.suffix == ".txt":
+				# We need the PG ebook number, which is basically the first part of the filename's stem
+				pg_num = book.stem.split("-")[0]
+				# Match the RDF tarball directory layout
+				files.append(f"cache/epub/{pg_num}/pg{pg_num}.rdf")
+
+	# pprint(sorted(files))
+
+	# We only care about our catalog subset
+	def catalog_subset(members):
+		for tarinfo in members:
+			if tarinfo.isreg() and tarinfo.name in files:
+				# Junk the path while we're here...
+				yield tarinfo.replace(name=tarinfo.name.split("/")[-1])
+
+	logger.opt(colors=True).info("Extracting RDF metadata. . .")
+	with tarfile.open(PG_RDF_TARBALL) as tar:
+		tar.extractall(path=PG_METADATA_DIR, members=catalog_subset(tar), filter="data")
+
+
 @app.command()
 def main():
 	# Download the filtered catalog
 	# download_pg_listing()
 	# Parse the listing to extract the download links
-	books = parse_pg_listing()
+	# books = parse_pg_listing()
 	# Download the books
-	download_pg_books(books)
+	# download_pg_books(books)
+	# Extract the RDF metadata for our downloaded books
+	extract_pg_metadata()
 
 
 if __name__ == "__main__":
