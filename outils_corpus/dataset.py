@@ -121,7 +121,7 @@ def extract_pg_metadata():
 				# Match the RDF tarball directory layout
 				metadata_files.add(f"cache/epub/{pg_num}/pg{pg_num}.rdf")
 			else:
-				logger.opt(colors=True).warning(f"Skipped <yellow>{book}</yellow>")
+				logger.opt(colors=True).warning(f"Skipped <red>{book}</red>")
 
 	# pprint(sorted(metadata_files))
 
@@ -132,7 +132,7 @@ def extract_pg_metadata():
 				# Junk the path while we're here...
 				yield tarinfo.replace(name=tarinfo.name.split("/")[-1])
 
-	logger.opt(colors=True).info("Extracting RDF metadata. . .")
+	logger.info("Extracting RDF metadata. . .")
 	with tarfile.open(PG_RDF_TARBALL) as tar:
 		tar.extractall(path=PG_METADATA_DIR, members=catalog_subset(tar), filter="data")
 
@@ -149,6 +149,41 @@ def extract_pg_metadata():
 	# pprint(wanted_files - extracted_files)
 
 
+def dedupe_pg_books() -> dict[str, dict[str, str]]:
+	"""
+	Build a map of the "best" (in terms of character encoding) file for each PG book number we've got
+	"""
+
+	books = {}
+	# Start from the metadata
+	for root, dirs, files in PG_METADATA_DIR.walk():
+		for name in files:
+			filename = root / name
+			# Skip the leading "pg"
+			pg_num = filename.stem[2:]
+
+			# Build a list of potential variants, in reverse order of priority
+			variants = [
+				("ascii", pg_num + ".txt"),
+				("iso-8859-1", pg_num + "-8" + ".txt"),
+				("utf-8", pg_num + "-0" + ".txt"),
+			]
+			# Check 'em, and store that in a dict, so the best one "wins"
+			for variant in variants:
+				encoding, path = variant
+				if (RAW_DATA_DIR / path).exists():
+					books[pg_num] = {"encoding": encoding, "path": path}
+
+			# Warn if we couldn't find a match
+			if pg_num not in books:
+				logger.opt(colors=True).warning(f"Couldn't find a file for book number <red>{pg_num}</red>")
+
+	logger.info(f"Found {len(books)} unique books")
+	# pprint(books)
+
+	return books
+
+
 @app.command()
 def main():
 	# Download the filtered catalog
@@ -158,7 +193,9 @@ def main():
 	# Download the books
 	# download_pg_books(books)
 	# Extract the RDF metadata for our downloaded books
-	extract_pg_metadata()
+	# extract_pg_metadata()
+	# Find the best file for each book number
+	books = dedupe_pg_books()
 
 
 if __name__ == "__main__":
