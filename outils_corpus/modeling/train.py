@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 
+from time import time
 
 from loguru import logger
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import RidgeClassifier
-from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn import metrics
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression, RidgeClassifier, SGDClassifier
+from sklearn.naive_bayes import ComplementNB
+from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
+from sklearn.svm import LinearSVC
+from sklearn.utils.extmath import density
 import typer
 
 from outils_corpus.config import FIGURES_DIR
@@ -58,10 +64,60 @@ def plot_clf_feature_effects(clf, X_train, target_names, feature_names) -> None:
 	)
 	ax.legend(loc="lower right")
 
-	print("top 5 keywords per class:")
+	logger.info("top 5 keywords per class:")
 	print(top)
 
 	return ax
+
+
+def benchmark_clf(clf, X_train, X_test, y_train, y_test, feature_names, target_names, custom_name=False):
+	"""
+	Benchmark a specific classifier
+	(Implies training, inference, evaluation & plotting).
+	"""
+
+	print("_" * 80)
+	logger.info("Training: ")
+	logger.info(clf)
+	t0 = time()
+	clf.fit(X_train, y_train)
+	train_time = time() - t0
+	logger.info(f"train time: {train_time:.3}s")
+
+	t0 = time()
+	pred = clf.predict(X_test)
+	test_time = time() - t0
+	logger.info(f"test time:  {test_time:.3}s")
+
+	score = metrics.accuracy_score(y_test, pred)
+	logger.info(f"accuracy:   {score:.3}")
+
+	if hasattr(clf, "coef_"):
+		logger.info(f"dimensionality: {clf.coef_.shape[1]}")
+		logger.info(f"density: {density(clf.coef_)}")
+		print()
+
+	print()
+	if custom_name:
+		clf_descr = str(custom_name)
+	else:
+		clf_descr = clf.__class__.__name__
+
+	# Plot the resulting confusion matrix
+	logger.info("Plotting its confusion matrix")
+	fig, ax = plt.subplots(figsize=(10, 5))
+	metrics.ConfusionMatrixDisplay.from_predictions(y_test, pred, ax=ax)
+	ax.xaxis.set_ticklabels(target_names)
+	ax.yaxis.set_ticklabels(target_names)
+	_ = ax.set_title(f"Confusion Matrix for {clf.__class__.__name__}")
+	plt.savefig(FIGURES_DIR / f"{clf.__class__.__name__}-confusion-matrix.png")
+
+	# Plot the feature effect, if possible
+	if hasattr(clf, "coef_"):
+		_ = plot_clf_feature_effects(clf, X_train, target_names, feature_names).set_title("Average feature effect")
+		plt.savefig(FIGURES_DIR / f"{clf.__class__.__name__}-feature-effect.png", dpi=450)
+
+	return clf_descr, score, train_time, test_time
 
 
 def train_models() -> None:
@@ -72,23 +128,28 @@ def train_models() -> None:
 	# Load our embeddings
 	X_train, X_test, y_train, y_test, feature_names, target_names = extract_features()
 
-	# CLF
-	logger.info("Training a CLF")
-	clf = RidgeClassifier(tol=1e-2, solver="sparse_cg")
-	clf.fit(X_train, y_train)
-	pred = clf.predict(X_test)
-
-	# Plot the resulting confusion matrix
-	logger.info("Plotting its confusion matrix")
-	fig, ax = plt.subplots(figsize=(10, 5))
-	ConfusionMatrixDisplay.from_predictions(y_test, pred, ax=ax)
-	ax.xaxis.set_ticklabels(target_names)
-	ax.yaxis.set_ticklabels(target_names)
-	_ = ax.set_title(f"Confusion Matrix for {clf.__class__.__name__}")
-	plt.savefig(FIGURES_DIR / "CLF-confusion-matrix.png")
-
-	_ = plot_clf_feature_effects(clf, X_train, target_names, feature_names).set_title("Average feature effect")
-	plt.savefig(FIGURES_DIR / "CLF-feature-effect.png", dpi=450)
+	# Train, pred & eval all the things
+	results = []
+	for clf, name in (
+		(LogisticRegression(C=5, max_iter=1000), "Logistic Regression"),
+		(RidgeClassifier(alpha=1.0, solver="sparse_cg"), "Ridge Classifier"),
+		(KNeighborsClassifier(n_neighbors=100), "kNN"),
+		(RandomForestClassifier(), "Random Forest"),
+		# L2 penalty Linear SVC
+		(LinearSVC(C=0.1, dual=False, max_iter=1000), "Linear SVC"),
+		# L2 penalty Linear SGD
+		(
+			SGDClassifier(loss="log_loss", alpha=1e-4, n_iter_no_change=3, early_stopping=True),
+			"log-loss SGD",
+		),
+		# NearestCentroid (aka Rocchio classifier)
+		(NearestCentroid(), "NearestCentroid"),
+		# Sparse naive Bayes classifier
+		(ComplementNB(alpha=0.1), "Complement naive Bayes"),
+	):
+		print("=" * 80)
+		logger.info(name)
+		results.append(benchmark_clf(clf, X_train, X_test, y_train, y_test, feature_names, target_names, name))
 
 
 @app.command()
