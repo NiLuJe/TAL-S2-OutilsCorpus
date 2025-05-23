@@ -1,14 +1,12 @@
+#!/usr/bin/env python3
+
 from contextlib import chdir
-from pathlib import Path
-import os
 import subprocess
 
-from loguru import logger
-from tqdm.rich import tqdm
-import typer
 import niquests
+import typer
 
-from outils_corpus.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR, PG_MIRROR, PG_RDF_TARBALL
+from outils_corpus.config import PG_MIRROR, PG_RDF_TARBALL
 
 app = typer.Typer()
 
@@ -25,9 +23,13 @@ def download_pg_listing():
 	PG_MIRROR.mkdir(exist_ok=True)
 	with chdir(PG_MIRROR):
 		# We'll want TXT files, in French
-		subprocess.run("wget -w 2 -m -H 'http://www.gutenberg.org/robot/harvest?filetypes[]=txt&langs[]=fr'", check=True)
+		logger.info("Downloading listing of catalog subset")
+		subprocess.run(
+			"wget -w 2 -m -H http://www.gutenberg.org/robot/harvest?filetypes[]=txt&langs[]=fr".split(), check=True
+		)
 
 		# We're also going to need the metadata catalog
+		logger.info("Downloading metadata catalog dump")
 		r = niquests.get("https://www.gutenberg.org/cache/epub/feeds/rdf-files.tar.bz2", stream=True)
 		with open(PG_RDF_TARBALL, "wb") as fd:
 			for chunk in r.iter_content():
