@@ -1,28 +1,27 @@
+#!/usr/bin/env python3
+
 from pathlib import Path
 
 from loguru import logger
-from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 import typer
 
-from outils_corpus.config import PROCESSED_DATA_DIR
+from outils_corpus.config import FULL_DATASET
 
 app = typer.Typer()
 
 
+def feature_extraction():
+	# load our full dataset
+	df = pl.read_parquet(FULL_DATASET)
+
+	# Do a 80/20 stratified split
+	X_train, X_test, y_train, y_test = train_test_split(df, df.select("century"), test_size=0.2, random_state=42, shuffle=True, stratify=df.select("century").unique())
+
+
 @app.command()
-def main(
-	# ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-	input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-	output_path: Path = PROCESSED_DATA_DIR / "features.csv",
-	# -----------------------------------------
-):
-	# ---- REPLACE THIS WITH YOUR OWN CODE ----
-	logger.info("Generating features from dataset...")
-	for i in tqdm(range(10), total=10):
-		if i == 5:
-			logger.info("Something happened for iteration 5.")
-	logger.success("Features generation complete.")
-	# -----------------------------------------
+def main() -> None:
+	foo()
 
 
 if __name__ == "__main__":

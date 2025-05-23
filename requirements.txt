@@ -9,6 +9,8 @@ altair
 vegafusion[embed]
 vl-convert-python
 plotly
+scikit-learn
+skrub
 awscli == 1.36.40
 loguru
 pip
