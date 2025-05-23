@@ -9,6 +9,8 @@ altair
 vegafusion[embed]
 vl-convert-python
 plotly
+polars-splitters
+spacy
 scikit-learn
 skrub
 awscli == 1.36.40
