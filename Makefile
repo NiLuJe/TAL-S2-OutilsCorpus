@@ -3,6 +3,7 @@
 #################################################################################
 
 PROJECT_NAME = TAL-S2-OutilsCorpus
+VENV_NAME = corpus
 PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python$(PYTHON_VERSION)
 PROJECT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
