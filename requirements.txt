@@ -4,6 +4,7 @@ cookiecutter-data-science
 niquests
 beautifulsoup4
 lxml
+pandas
 polars
 altair
 vegafusion[embed]
