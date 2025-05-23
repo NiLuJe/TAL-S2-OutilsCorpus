@@ -34,7 +34,7 @@ def train_models():
 	ax.xaxis.set_ticklabels(target_names)
 	ax.yaxis.set_ticklabels(target_names)
 	_ = ax.set_title(f"Confusion Matrix for {clf.__class__.__name__}\non the original documents")
-	plt.save(FIGURES_DIR / "CLF-confusion-matrix.png")
+	plt.savefig(FIGURES_DIR / "CLF-confusion-matrix.png")
 
 
 @app.command()

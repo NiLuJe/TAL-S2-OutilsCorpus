@@ -66,8 +66,8 @@ def extract_features():
 		as_lazy=False,
 		rel_size_deviation_tolerance=0.1,
 	)
-	y_train = df_train.select("century").to_numpy()
-	y_test = df_test.select("century").to_numpy()
+	y_train = df_train.select("century").to_series().to_numpy()
+	y_test = df_test.select("century").to_series().to_numpy()
 
 	# Extracting features from the training data using a sparse vectorizer
 	logger.info("Extracting features from the train set")
