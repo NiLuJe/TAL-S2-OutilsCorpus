@@ -4,16 +4,22 @@ from contextlib import chdir
 import io
 import subprocess
 import tarfile
+from typing import TypeAlias
 import zipfile
 
 from bs4 import BeautifulSoup
 from loguru import logger
+from lxml import etree
 import niquests
 from rich.pretty import pprint
 from tqdm.rich import tqdm
 import typer
 
 from outils_corpus.config import PG_METADATA_DIR, PG_MIRROR, PG_RDF_TARBALL, RAW_DATA_DIR
+
+# Use type aliases to keep the signatures sane...
+Book: TypeAlias = dict[str, str]
+Corpus: TypeAlias = dict[int, Book]
 
 app = typer.Typer()
 
@@ -149,7 +155,7 @@ def extract_pg_metadata():
 	# pprint(wanted_files - extracted_files)
 
 
-def dedupe_pg_books() -> dict[str, dict[str, str]]:
+def dedupe_pg_books() -> Corpus:
 	"""
 	Build a map of the "best" (in terms of character encoding) file for each PG book number we've got
 	"""
@@ -168,6 +174,8 @@ def dedupe_pg_books() -> dict[str, dict[str, str]]:
 				("iso-8859-1", pg_num + "-8" + ".txt"),
 				("utf-8", pg_num + "-0" + ".txt"),
 			]
+			# Use a more appropriate datatype for pg_num from here on out
+			pg_num = int(pg_num)
 			# Check 'em, and store that in a dict, so the best one "wins"
 			for variant in variants:
 				encoding, path = variant
@@ -184,6 +192,70 @@ def dedupe_pg_books() -> dict[str, dict[str, str]]:
 	return books
 
 
+def parse_pg_metadata(books: Corpus) -> Corpus:
+	for pg_num, book in books.items():
+		# Parse the matching RDF file
+		metadata_file = PG_METADATA_DIR / ("pg" + str(pg_num) + ".rdf")
+		logger.opt(colors=True).info(f"Parsing <blue>{metadata_file.name}</blue>")
+		tree = etree.parse(metadata_file)
+
+		# Find the authors and their dates
+		authors = {}
+		for creator in tree.iterfind(".//{http://purl.org/dc/terms/}creator"):
+			for agent in creator.iterfind("{http://www.gutenberg.org/2009/pgterms/}agent"):
+				author = agent.findtext("{http://www.gutenberg.org/2009/pgterms/}name")
+				birth = agent.findtext("{http://www.gutenberg.org/2009/pgterms/}birthdate")
+				death = agent.findtext("{http://www.gutenberg.org/2009/pgterms/}deathdate")
+
+				# NOTE: PG doesn't provide the original publiucation date,
+				#       as the content may be composited from *different* sources.
+				#       Since *we* need a date that roughly matches the publication date,
+				#       we'll use the date of the author's death (or it's birth + 15 barring that).
+				if death:
+					authors[author] = int(death)
+				elif birth:
+					authors[author] = int(birth) + 15
+				else:
+					authors[author] = 0
+					logger.opt(colors=True).warning(f"No dates for author <cyan>{author}</cyan>")
+
+		# If it's a translation, prefer the translator's dates, as we care about the actual language of *this* text
+		translators = {}
+		for trl in tree.iterfind(".//{http://id.loc.gov/vocabulary/relators/}trl"):
+			for agent in trl.iterfind("{http://www.gutenberg.org/2009/pgterms/}agent"):
+				translator = agent.findtext("{http://www.gutenberg.org/2009/pgterms/}name")
+				birth = agent.findtext("{http://www.gutenberg.org/2009/pgterms/}birthdate")
+				death = agent.findtext("{http://www.gutenberg.org/2009/pgterms/}deathdate")
+
+				if death:
+					translators[translator] = int(death)
+				elif birth:
+					translators[translator] = int(birth) + 15
+				else:
+					logger.opt(colors=True).warning(f"No dates for translator <cyan>{translator}</cyan>")
+
+		# Keep the latest date
+		if translators:
+			translators = sorted(translators.items(), key=lambda item: -item[1])
+			most_recent = translators[0]
+			tl, year = most_recent
+			# Use the (main, i.e., first) author name for our metadata, if any
+			if authors:
+				book.update(author=list(authors)[0], year=year)
+			else:
+				book.update(author=tl, year=year)
+		elif authors:
+			authors = sorted(authors.items(), key=lambda item: -item[1])
+			most_recent = authors[0]
+			auth, year = most_recent
+			book.update(author=auth, year=year)
+		else:
+			logger.opt(colors=True).warning(f"No dates for book <red>{pg_num}</red>")
+
+	pprint(books)
+	return books
+
+
 @app.command()
 def main():
 	# Download the filtered catalog
@@ -196,6 +268,8 @@ def main():
 	# extract_pg_metadata()
 	# Find the best file for each book number
 	books = dedupe_pg_books()
+	# Parse metadata for each book number
+	books = parse_pg_metadata(books)
 
 
 if __name__ == "__main__":
