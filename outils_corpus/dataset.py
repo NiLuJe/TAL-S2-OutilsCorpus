@@ -76,13 +76,21 @@ def download_pg_books(books: str):
 	with niquests.Session() as s:
 		# Might take a while, so, show pretty colors while we wait ;).
 		for book in tqdm(books):
+			filename = book.split("/")[-1]
 			logger.opt(colors=True).info(f"Downloading <blue>{book}</blue>")
 			r = s.get(book)
+			# Bail on that URL if the request failed
+			if r.status_code != niquests.codes.ok:
+				logger.opt(colors=True).warning(f"Failed to download <red>{book}</red>")
+				continue
 			# Keep the zip data in memory, we only want to flush the archive's content to disk...
-			logger.opt(colors=True).info(f"Extracting <green>{book}</green>")
-			with zipfile.ZipFile(io.BytesIO(r.content), "r") as zf:
-				# We're getting at actual actionable data, chuck it in data/raw
-				zf.extractall(path=RAW_DATA_DIR)
+			logger.opt(colors=True).info(f"Extracting <green>{filename}</green>")
+			try:
+				with zipfile.ZipFile(io.BytesIO(r.content), "r") as zf:
+					# We're getting at actual actionable data, chuck it in data/raw
+					zf.extractall(path=RAW_DATA_DIR)
+			except zipfile.BadZipFile:
+				logger.opt(colors=True).warning(f"Failed to unpack <red>{filename}</red>")
 
 
 @app.command()
