@@ -1,0 +1,12 @@
+pre-commit
+commitizen
+cookiecutter-data-science
+awscli == 1.36.40
+loguru
+pip
+python-dotenv
+ruff
+rich
+tqdm
+typer
+-e .
