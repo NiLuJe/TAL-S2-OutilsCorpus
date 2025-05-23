@@ -25,6 +25,13 @@ def plot_clf_feature_effects(clf, X_train, target_names, feature_names) -> None:
 	"""
 	Plot the impact of specific features on the classifier's decision,
 	c.f., https://scikit-learn.org/stable/auto_examples/text/plot_document_classification_20newsgroups.html#model-without-metadata-stripping
+
+	Parameters
+	----------
+	clf: Classifier instance
+	X_train: CSR matrix
+	feature_names: np.array
+	target_names: np.array
 	"""
 
 	# learned coefficients weighted by frequency of appearance
@@ -74,6 +81,18 @@ def benchmark_clf(clf, X_train, X_test, y_train, y_test, feature_names, target_n
 	"""
 	Benchmark a specific classifier
 	(Implies training, inference, evaluation & plotting).
+
+	Parameters
+	----------
+	clf: Classifier instance
+	X_train: CSR matrix
+	X_test: CSR matrix
+	y_train: np.array
+	y_test: np.array
+	feature_names: np.array
+	target_names: np.array
+	custom_name: str
+		A human-readable name for the classifier (otherwise, the class name is used)
 	"""
 
 	print("_" * 80)
@@ -150,6 +169,39 @@ def train_models() -> None:
 		print("=" * 80)
 		logger.info(name)
 		results.append(benchmark_clf(clf, X_train, X_test, y_train, y_test, feature_names, target_names, name))
+
+	# Plot the score/training trade-off
+	indices = np.arange(len(results))
+
+	results = [[x[i] for x in results] for i in range(4)]
+
+	clf_names, score, training_time, test_time = results
+	training_time = np.array(training_time)
+	test_time = np.array(test_time)
+
+	fig, ax1 = plt.subplots(figsize=(10, 8))
+	ax1.scatter(score, training_time, s=60)
+	ax1.set(
+		title="Score-training time trade-off",
+		yscale="log",
+		xlabel="test accuracy",
+		ylabel="training time (s)",
+	)
+	for i, txt in enumerate(clf_names):
+		ax1.annotate(txt, (score[i], training_time[i]))
+	plt.savefig(FIGURES_DIR / "recap-classifiers-score-vs-train-time.png")
+
+	fig, ax2 = plt.subplots(figsize=(10, 8))
+	ax2.scatter(score, test_time, s=60)
+	ax2.set(
+		title="Score-test time trade-off",
+		yscale="log",
+		xlabel="test accuracy",
+		ylabel="test time (s)",
+	)
+	for i, txt in enumerate(clf_names):
+		ax2.annotate(txt, (score[i], test_time[i]))
+	plt.savefig(FIGURES_DIR / "recap-classifiers-score-vs-test-time.png")
 
 
 @app.command()
