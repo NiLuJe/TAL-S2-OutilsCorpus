@@ -7,7 +7,7 @@ name = "outils_corpus"
 version = "0.0.1"
 description = "End of term project, text classification by date."
 authors = [
-  { name = "Damien Biguet" },
+  { name = "Damien Biguet", email = "ninuje@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -19,7 +19,7 @@ requires-python = "~=3.12.0"
 
 
 [tool.ruff]
-line-length = 99
+line-length = 122
 src = ["outils_corpus"]
 include = ["pyproject.toml", "outils_corpus/**/*.py"]
 
@@ -30,3 +30,5 @@ extend-select = ["I"]  # Add import sorting
 known-first-party = ["outils_corpus"]
 force-sort-within-sections = true
 
+[tool.ruff.format]
+indent-style = "tab"
