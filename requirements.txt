@@ -3,6 +3,7 @@ commitizen
 cookiecutter-data-science
 niquests
 beautifulsoup4
+lxml
 awscli == 1.36.40
 loguru
 pip

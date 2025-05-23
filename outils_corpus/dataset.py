@@ -3,7 +3,9 @@
 from contextlib import chdir
 import subprocess
 
+from bs4 import BeautifulSoup
 from loguru import logger
+from rich.pretty import pprint
 import niquests
 import typer
 
@@ -37,10 +39,36 @@ def download_pg_listing():
 				fd.write(chunk)
 
 
+def parse_pg_listing() -> list[str]:
+	"""
+	Parse the listing downloaded by `download_pg_listing` to get at the actual content.
+	"""
+
+	# It's just a bunch of links in a minimal HTML page, so, bs4 FTW
+	PG_LISTING = PG_MIRROR / "www.gutenberg.org" / "robot"
+	books = []
+	for root, dirs, files in PG_LISTING.walk(top_down=False):
+		for name in files:
+			input_html = root / name
+			logger.opt(colors=True).info(f"Parsing <blue>{input_html.name}</blue>")
+			with open(input_html) as fp:
+				soup = BeautifulSoup(fp, "lxml")
+				for link in soup.find_all("a"):
+					href = link.get("href")
+					# Skip the navigation links
+					if href.endswith(".zip"):
+						books.append(href)
+
+	print(f"Found {len(books)} books")
+	pprint(books)
+	return books
+
+
 @app.command()
 def main():
 	# Download the filtered catalog
-	download_pg_listing()
+	# download_pg_listing()
+	parse_pg_listing()
 
 
 if __name__ == "__main__":
