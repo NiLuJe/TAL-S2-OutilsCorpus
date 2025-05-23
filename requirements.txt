@@ -1,6 +1,10 @@
 pre-commit
 commitizen
 cookiecutter-data-science
+niquests
+beautifulsoup4
+lxml
+polars
 awscli == 1.36.40
 loguru
 pip
