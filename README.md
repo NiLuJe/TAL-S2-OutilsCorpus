@@ -53,3 +53,5 @@ End of term project, text classification by date.
 --------
 
 ## [TP 1](reports/TP1.md)
+
+## [Project overview](reports/project.md)
