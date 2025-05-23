@@ -4,11 +4,18 @@ cookiecutter-data-science
 niquests
 beautifulsoup4
 lxml
+pandas
 polars
 altair
 vegafusion[embed]
 vl-convert-python
 plotly
+polars-splitters
+spacy
+scikit-learn
+skrub
+matplotlib
+numpy
 awscli == 1.36.40
 loguru
 pip

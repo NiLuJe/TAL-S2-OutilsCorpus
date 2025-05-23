@@ -44,8 +44,7 @@ End of term project, text classification by date.
     │
     ├── modeling
     │   ├── __init__.py
-    │   ├── predict.py          <- Code to run model inference with trained models
-    │   └── train.py            <- Code to train models
+    │   └── train.py            <- Code to train, run and evaluate models
     │
     └── plots.py                <- Code to create visualizations
 ```
