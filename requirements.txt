@@ -13,6 +13,7 @@ polars-splitters
 spacy
 scikit-learn
 skrub
+matplotlib
 awscli == 1.36.40
 loguru
 pip

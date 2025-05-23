@@ -32,7 +32,7 @@ def gen_text_rows(df: pl.DataFrame) -> Iterable[str]:
 		yield row[0]
 
 
-def feature_extraction():
+def extract_features():
 	"""
 	Perform feature extraction (TfidfVectorizer) on our full dataset, in an 80/20 train/test stratified split
 
@@ -40,10 +40,10 @@ def feature_extraction():
 	-------
 	X_train: CSR matrix
 	X_test: CSR matrix
-	y_train: pl.DataFrame
-	y_test: pl.DataFrame
+	y_train: np.array
+	y_test: np.array
 	feature_names: np.array
-	target_names: list[int]
+	target_names: np.array
 	"""
 
 	# load our full dataset
@@ -66,8 +66,8 @@ def feature_extraction():
 		as_lazy=False,
 		rel_size_deviation_tolerance=0.1,
 	)
-	y_train = df_train.select("century")
-	y_test = df_test.select("century")
+	y_train = df_train.select("century").to_numpy()
+	y_test = df_test.select("century").to_numpy()
 
 	# Extracting features from the training data using a sparse vectorizer
 	logger.info("Extracting features from the train set")
@@ -84,7 +84,7 @@ def feature_extraction():
 
 	feature_names = vectorizer.get_feature_names_out()
 
-	target_names = df.select("century").unique().to_series().to_list()
+	target_names = df.select("century").unique().to_numpy()
 
 	logger.info(f"{len(target_names)} categories")
 	logger.info(f"vectorize training done in {duration_train:.3f}s ")
@@ -105,7 +105,7 @@ def feature_extraction():
 
 @app.command()
 def main() -> None:
-	feature_extraction()
+	extract_features()
 
 
 if __name__ == "__main__":
