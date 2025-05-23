@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 
 from contextlib import chdir
+import io
 import subprocess
+import zipfile
 
 from bs4 import BeautifulSoup
 from loguru import logger
-from rich.pretty import pprint
 import niquests
+from rich.pretty import pprint
+from tqdm.rich import tqdm
 import typer
 
-from outils_corpus.config import PG_MIRROR, PG_RDF_TARBALL
+from outils_corpus.config import PG_MIRROR, PG_RDF_TARBALL, RAW_DATA_DIR
 
 app = typer.Typer()
 
@@ -48,7 +51,7 @@ def parse_pg_listing() -> list[str]:
 	PG_LISTING = PG_MIRROR / "www.gutenberg.org" / "robot"
 	books = []
 	for root, dirs, files in PG_LISTING.walk(top_down=False):
-		for name in files:
+		for name in tqdm(files):
 			input_html = root / name
 			logger.opt(colors=True).info(f"Parsing <blue>{input_html.name}</blue>")
 			with open(input_html) as fp:
@@ -64,11 +67,32 @@ def parse_pg_listing() -> list[str]:
 	return books
 
 
+def download_pg_books(books: str):
+	"""
+	Download the book archives, and extract their content (a single txt file)
+	"""
+
+	# Work in a session to reuse connections
+	with niquests.Session() as s:
+		# Might take a while, so, show pretty colors while we wait ;).
+		for book in tqdm(books):
+			logger.opt(colors=True).info(f"Downloading <blue>{book}</blue>")
+			r = s.get(book)
+			# Keep the zip data in memory, we only want to flush the archive's content to disk...
+			logger.opt(colors=True).info(f"Extracting <green>{book}</green>")
+			with zipfile.ZipFile(io.BytesIO(r.content), "r") as zf:
+				# We're getting at actual actionable data, chuck it in data/raw
+				zf.extractall(path=RAW_DATA_DIR)
+
+
 @app.command()
 def main():
 	# Download the filtered catalog
 	# download_pg_listing()
-	parse_pg_listing()
+	# Parse the listing to extract the download links
+	books = parse_pg_listing()
+	# Download the books
+	download_pg_books(books)
 
 
 if __name__ == "__main__":
