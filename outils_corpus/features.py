@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 from time import time
-from typing import Iterable
 
 from loguru import logger
+import numpy as np
 import polars as pl
 from polars_splitters import split_into_train_eval
 from rich.pretty import pprint
@@ -14,22 +14,6 @@ import typer
 from outils_corpus.config import FULL_DATASET
 
 app = typer.Typer()
-
-
-def gen_text_rows(df: pl.DataFrame) -> Iterable[str]:
-	"""
-	Generator for row data from the "text" column in a DatFrame
-
-	Yields
-	------
-	str
-		Text from the "text" column for a single row
-	"""
-
-	# NOTE: This is extremely not great (not //)
-	for row in df.select("text").iter_rows():
-		# Polars yields tuples, scikit wants the data
-		yield row[0]
 
 
 def extract_features():
@@ -73,18 +57,19 @@ def extract_features():
 	logger.info("Extracting features from the train set")
 	t0 = time()
 	vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.5, min_df=5, stop_words=list(fr_stop))
-	X_train = vectorizer.fit_transform(gen_text_rows(df_train))
+	X_train = vectorizer.fit_transform(df_train.select("text").to_series().to_numpy())
 	duration_train = time() - t0
 
 	# Extracting features from the test data using the same vectorizer
 	logger.info("Extracting features from the test set")
 	t0 = time()
-	X_test = vectorizer.transform(gen_text_rows(df_test))
+	X_test = vectorizer.transform(df_test.select("text").to_series().to_numpy())
 	duration_test = time() - t0
 
 	feature_names = vectorizer.get_feature_names_out()
 
-	target_names = df.select("century").unique().to_numpy()
+	# NOTE: Sort this, or the plots are confused as all hell...
+	target_names = np.sort(df.select("century").unique().to_series().to_numpy())
 
 	logger.info(f"{len(target_names)} categories")
 	logger.info(f"vectorize training done in {duration_train:.3f}s ")
