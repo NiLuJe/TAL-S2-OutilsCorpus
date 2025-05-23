@@ -22,7 +22,7 @@ def download_pg_listing():
 	Download PG's listing of French TXT files
 	"""
 	# NOTE: PG frowns upon crawling, they instead offer tools to download specific subsets of their catalog,
-	#       which we're going to mae use of.
+	#       which we're going to make use of.
 	#       c.f., https://www.gutenberg.org/policy/robot_access.html for more details.
 
 	# Work in a dedicated subfolder
@@ -45,9 +45,14 @@ def download_pg_listing():
 def parse_pg_listing() -> list[str]:
 	"""
 	Parse the listing downloaded by `download_pg_listing` to get at the actual content.
+
+	Returns
+	-------
+	list[str]
+		A list of URLs to a PG zip archive
 	"""
 
-	# It's just a bunch of links in a minimal HTML page, so, bs4 FTW
+	# It's just a bunch of links to zip archives in a minimal HTML page, so, bs4 FTW
 	PG_LISTING = PG_MIRROR / "www.gutenberg.org" / "robot"
 	books = []
 	for root, dirs, files in PG_LISTING.walk(top_down=False):
@@ -67,9 +72,14 @@ def parse_pg_listing() -> list[str]:
 	return books
 
 
-def download_pg_books(books: str):
+def download_pg_books(books: list[str]):
 	"""
 	Download the book archives, and extract their content (a single txt file)
+
+	Parameters
+	----------
+	books: list[str]
+		A list of URLs to a PG zip archive
 	"""
 
 	# Work in a session to reuse connections
