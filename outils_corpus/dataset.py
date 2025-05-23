@@ -408,13 +408,13 @@ def build_full_dataset(books: Corpus) -> None:
 @app.command()
 def main():
 	# Download the filtered catalog
-	# download_pg_listing()
+	download_pg_listing()
 	# Parse the listing to extract the download links
-	# books = parse_pg_listing()
+	urls = parse_pg_listing()
 	# Download the books
-	# download_pg_books(books)
+	download_pg_books(urls)
 	# Extract the RDF metadata for our downloaded books
-	# extract_pg_metadata()
+	extract_pg_metadata()
 	# Find the best file for each book number
 	books = dedupe_pg_books()
 	# Parse metadata for each book number
