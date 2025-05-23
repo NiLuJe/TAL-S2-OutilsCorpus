@@ -5,6 +5,10 @@ niquests
 beautifulsoup4
 lxml
 polars
+altair
+vegafusion[embed]
+vl-convert-python
+plotly
 awscli == 1.36.40
 loguru
 pip

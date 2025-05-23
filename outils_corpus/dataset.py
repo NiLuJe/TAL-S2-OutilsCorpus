@@ -406,7 +406,7 @@ def build_full_dataset(books: Corpus) -> None:
 
 
 @app.command()
-def main():
+def main() -> None:
 	# Download the filtered catalog
 	download_pg_listing()
 	# Parse the listing to extract the download links
