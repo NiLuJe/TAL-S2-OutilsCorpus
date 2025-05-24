@@ -33,6 +33,9 @@ FULL_DATASET = PROCESSED_DATA_DIR / "pg-fr-books-full.parquet"
 # Visualizations
 CATEGORIES_VIZ = FIGURES_DIR / "cat-distrib.html"
 
+# SetFit
+SETFIT_DIR = MODELS_DIR / "setfit-trained"
+
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135
 try:

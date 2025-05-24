@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from tqdm.rich import tqdm
 import typer
 
-from outils_corpus.config import FIGURES_DIR, FULL_DATASET, MODELS_DIR
+from outils_corpus.config import FIGURES_DIR, FULL_DATASET, MODELS_DIR, SETFIT_DIR
 
 app = typer.Typer()
 
@@ -109,7 +109,7 @@ def create_dataset() -> tuple[Dataset, list[str]]:
 	return ds, labels
 
 
-def train_setfit(dataset: DatasetDict, labels: list[str]) -> tuple[SetFitModel, Dataset]:
+def train_setfit(dataset: DatasetDict, labels: list[str]) -> SetFitModel:
 	"""
 	Fine-tune a SentenceTransformer checkpoint via SetFit
 
@@ -124,13 +124,10 @@ def train_setfit(dataset: DatasetDict, labels: list[str]) -> tuple[SetFitModel, 
 	-------
 	model : SetFitModel
 		A trained SetFitModel, fine-tuned on the input dataset
-	test_dataset : Dataset
-		The test split from our input dataset
 	"""
 
 	train_dataset = dataset["train"]
 	eval_dataset = dataset["val"]
-	test_dataset = dataset["test"]
 
 	# Test on a small subset of data, because this is a hungry caterpillar...
 	tmp_train_dataset = train_dataset.select(range(32)).shuffle()
@@ -166,11 +163,10 @@ def train_setfit(dataset: DatasetDict, labels: list[str]) -> tuple[SetFitModel, 
 	trainer.train()
 
 	# Save the model
-	SETFIT_DIR = MODELS_DIR / "setfit-trained"
 	SETFIT_DIR.mkdir(exist_ok=True)
 	trainer.model._save_pretrained(MODELS_DIR / "setfit-trained")
 
-	return trainer.model, test_dataset
+	return trainer.model
 
 
 def calculate_f1_score(y_true: np.array, y_pred: np.array) -> dict[str, str]:
@@ -196,7 +192,15 @@ def calculate_f1_score(y_true: np.array, y_pred: np.array) -> dict[str, str]:
 	report = classification_report(y_true, y_pred, zero_division=0)
 	(FIGURES_DIR / "SetFit-classification-report.txt").write_text(report)
 
-	return {"micro f1": clf_dict["micro avg"]["f1-score"], "macro f1": clf_dict["macro avg"]["f1-score"]}
+	return {"micro f1": clf_dict["weighted avg"]["f1-score"], "macro f1": clf_dict["macro avg"]["f1-score"]}
+
+
+def load_setfit() -> SetFitModel:
+	"""
+	Load our fine-tuned model from disk
+	"""
+
+	return SetFitModel._from_pretrained(SETFIT_DIR.as_posix())
 
 
 def inference(model: SetFitModel, test_dataset: Dataset):
@@ -217,15 +221,16 @@ def inference(model: SetFitModel, test_dataset: Dataset):
 	dataloader = DataLoader(test_dataset, batch_size=batch_size)
 
 	predicted_labels = []
-	actual_labels = [sample["label"] for sample in test_dataset]
+	actual_labels = [test_dataset.features["label"].int2str(sample["label"]) for sample in test_dataset]
 
 	# Generate predictions in batches
 	logger.info("Predicting . . .")
-	start_time = time.time()
-	for i, inputs in tqdm(enumerate(dataloader)):
+	start_time = time()
+	for i, inputs in enumerate(tqdm(dataloader)):
 		predictions = model.predict(inputs["text"])
-		predicted_labels.extend(list(tmp) for tmp in predictions.detach().cpu().numpy())
-	end_time = time.time()
+		# predicted_labels.extend(list(tmp) for tmp in predictions.detach().cpu().numpy())
+		predicted_labels.extend(predictions)
+	end_time = time()
 
 	print(end_time - start_time)
 
@@ -239,8 +244,13 @@ def inference(model: SetFitModel, test_dataset: Dataset):
 def main() -> None:
 	# Wrangle our parquet dataset in a DatasetDict
 	ds, labels = create_dataset()
+	test_dataset = ds["test"]
+
 	# Fine-tune a SetFit model on our data, from a sentence-transformer checkpoint
-	model, test_dataset = train_setfit(ds, labels)
+	model = train_setfit(ds, labels)
+	# Or load our saved model from an earlier training run
+	# model = load_setfit()
+
 	# Run inference
 	inference(model, test_dataset)
 
