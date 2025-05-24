@@ -45,7 +45,8 @@ End of term project, text classification by date.
     │
     ├── modeling
     │   ├── __init__.py
-    │   └── train.py            <- Code to train, run and evaluate models
+    |   ├── train.py            <- Code to train, run and evaluate models
+    │   └── tf-pipelines.py     <- Ditto, experimenting with SetFit fine-tuning
     │
     └── plots.py                <- Code to create visualizations
 ```
