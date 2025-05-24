@@ -17,10 +17,10 @@ from outils_corpus.config import FIGURES_DIR, FULL_DATASET
 app = typer.Typer()
 
 
-def plot_gap_feature_importance(X_trans):
+def plot_gap_feature_importance(X_trans: pd.DataFrame):
 	x_samples = X_trans.pop("text")
 
-	# We slightly format the topics and labels for them to fit on the plot
+	# We slightly format the topics and labels for them to fit on the plot.
 	topic_labels = [x.replace("text: ", "") for x in X_trans.columns]
 	labels = x_samples.str[:50].values + "..."
 
@@ -127,17 +127,18 @@ def skrub_pipeline():
 		rel_size_deviation_tolerance=0.1,
 	)
 
-	df_test = df_test.to_pandas()
-
 	X = df_test.select("text", "century")
 	y = df_test.select("century")
+
+	X = X.to_pandas()
+	y = y.to_pandas()
 
 	# GapEncoder
 	logger.info("Initial exploratory GapEncoder fit")
 	gap = GapEncoder(n_components=30)
 	X_trans = gap.fit_transform(X["text"])
-	# Add the original text as a column
-	X_trans = X_trans.with_columns(text=X["text"])
+	# Add the original text as a first column
+	X_trans.insert(0, "text", X["text"])
 
 	plot_gap_feature_importance(X_trans.head())
 
