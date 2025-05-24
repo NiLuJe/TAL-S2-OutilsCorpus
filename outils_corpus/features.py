@@ -56,6 +56,7 @@ def extract_features():
 	# Extracting features from the training data using a sparse vectorizer
 	logger.info("Extracting features from the train set")
 	t0 = time()
+	# NOTE: A higher max_df doesn't help (in fact, it often leads to very slightly lower accuracy)
 	vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.5, min_df=5, stop_words=list(fr_stop))
 	X_train = vectorizer.fit_transform(df_train.select("text").to_series().to_numpy())
 	duration_train = time() - t0
