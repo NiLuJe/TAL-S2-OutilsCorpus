@@ -221,6 +221,7 @@ def inference(model: SetFitModel, test_dataset: Dataset):
 	dataloader = DataLoader(test_dataset, batch_size=batch_size)
 
 	predicted_labels = []
+	# Expand our ClassLabels to their string representation
 	actual_labels = [test_dataset.features["label"].int2str(sample["label"]) for sample in test_dataset]
 
 	# Generate predictions in batches
@@ -228,13 +229,14 @@ def inference(model: SetFitModel, test_dataset: Dataset):
 	start_time = time()
 	for i, inputs in enumerate(tqdm(dataloader)):
 		predictions = model.predict(inputs["text"])
+		# NOTE: Not using a GPU, so, no need to jump through extra hoops here
 		# predicted_labels.extend(list(tmp) for tmp in predictions.detach().cpu().numpy())
 		predicted_labels.extend(predictions)
 	end_time = time()
 
 	print(end_time - start_time)
 
-	# Eval
+	# Quick evaluation
 	logger.info("Report:")
 	report = calculate_f1_score(actual_labels, predicted_labels)
 	print(report)
