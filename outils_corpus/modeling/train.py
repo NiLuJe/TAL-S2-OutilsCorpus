@@ -136,6 +136,13 @@ def benchmark_clf(clf, X_train, X_test, y_train, y_test, feature_names, target_n
 		_ = plot_clf_feature_effects(clf, X_train, target_names, feature_names).set_title("Average feature effect")
 		plt.savefig(FIGURES_DIR / f"{clf.__class__.__name__}-feature-effect.png", dpi=450)
 
+	# Print the classification report
+	logger.info("Evaluation metrics:")
+	report = metrics.classification_report(y_test, pred, zero_division=0.0)
+	print(report)
+	# Also dump it to text
+	(FIGURES_DIR / f"{clf.__class__.__name__}-classification-report.txt").write_text(report)
+
 	return clf_descr, score, train_time, test_time
 
 
