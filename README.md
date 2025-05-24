@@ -45,6 +45,7 @@ End of term project, text classification by date.
     │
     ├── modeling
     │   ├── __init__.py
+    |   ├── tf-pipelines.py     <- playground for transformers pipelines
     │   └── train.py            <- Code to train, run and evaluate models
     │
     └── plots.py                <- Code to create visualizations

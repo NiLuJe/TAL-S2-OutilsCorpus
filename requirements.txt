@@ -16,6 +16,11 @@ scikit-learn
 skrub
 matplotlib
 numpy
+transformers
+datasets
+setfit
+accelerate
+sentence-transformers
 awscli == 1.36.40
 loguru
 pip
