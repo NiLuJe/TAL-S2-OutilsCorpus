@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from tqdm.rich import tqdm
 import typer
 
-from outils_corpus.config import FULL_DATASET
+from outils_corpus.config import FIGURES_DIR, FULL_DATASET
 
 app = typer.Typer()
 
@@ -85,6 +85,7 @@ def train_setfit(dataset: Dataset, labels: np.array):
 
 	# labels=labels
 
+	# NOTE: Make sure to use a checkpoint that was actually trained on French ;o)
 	checkpoint = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 	# Load a SetFit model from Hub
@@ -93,6 +94,7 @@ def train_setfit(dataset: Dataset, labels: np.array):
 		checkpoint, use_differentiable_head=True, head_params={"out_features": len(labels)}, labels=labels
 	)
 
+	# Team Red over here, and apparently my numpy build is borked, so can't test rocm ;'(
 	# model.to("cuda")
 
 	args = TrainingArguments(
@@ -134,6 +136,9 @@ def calculate_f1_score(y_true, y_pred):
 
 	# Generate a classification report to compute detailed metrics
 	clf_dict = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
+	# Also dump it to text
+	report = classification_report(y_true, y_pred, zero_division=0)
+	(FIGURES_DIR / "SimFit-classification-report.txt").write_text(report)
 
 	return {"micro f1": clf_dict["micro avg"]["f1-score"], "macro f1": clf_dict["macro avg"]["f1-score"]}
 
