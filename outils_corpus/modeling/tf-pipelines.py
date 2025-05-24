@@ -24,6 +24,13 @@ app = typer.Typer()
 def create_dataset() -> tuple[Dataset, np.array]:
 	"""
 	Wrangle our data in the Dataset format
+
+	Returns
+	-------
+	ds : DatasetDict
+		The full dataset in train/val/test splits
+	labels: np.array
+		The list of gold labels
 	"""
 
 	# load our full dataset
@@ -70,9 +77,23 @@ def create_dataset() -> tuple[Dataset, np.array]:
 	return ds, labels
 
 
-def train_setfit(dataset: Dataset, labels: np.array):
+def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, Dataset]:
 	"""
-	Fine-tune a SentenceTransformer model via SetFit
+	Fine-tune a SentenceTransformer checkpoint via SetFit
+
+	Parameters
+	----------
+	dataset : DatasetDict
+		Input dataset in train/val/test splits, as returned by `create_dataset`
+	lavels : np.array
+		List of gold labels, as returned by `create_dataset`
+
+	Returns
+	-------
+	model : SetFitModel
+		A trained SetFitModel, fine-tuned on the input dataset
+	test_dataset : Dataset
+		The test split from our input dataset
 	"""
 
 	train_dataset = dataset["train"]
@@ -117,15 +138,15 @@ def train_setfit(dataset: Dataset, labels: np.array):
 	return trainer.model, test_dataset
 
 
-def calculate_f1_score(y_true, y_pred):
+def calculate_f1_score(y_true: np.array, y_pred: np.array) -> dict[str, str]:
 	"""
 	Calculates micro and macro F1-scores given the predicted and actual labels
 
 	Parameters
 	----------
-	y_true (numpy array) :
+	y_true : np.array
 		Actual labels
-	y_pred (numpy array) :
+	y_pred : np.array
 		Predicted labels
 
 	Returns
@@ -143,9 +164,18 @@ def calculate_f1_score(y_true, y_pred):
 	return {"micro f1": clf_dict["micro avg"]["f1-score"], "macro f1": clf_dict["macro avg"]["f1-score"]}
 
 
-def inference(model, test_dataset: Dataset, labels: np.array):
+def inference(model: SetFitModel, test_dataset: Dataset, labels: np.array):
 	"""
-	Run inference via our fine-tuned model
+	Run inference on test data via our fine-tuned model
+
+	Parameters
+	----------
+	model : SetFitModel
+		A trained SetFitModel
+	test_dataset : Dataset
+		The data to run inference on
+	labels : np.array
+		The list of gold labels
 	"""
 
 	# DataLoader for batching
@@ -174,8 +204,11 @@ def inference(model, test_dataset: Dataset, labels: np.array):
 
 @app.command()
 def main() -> None:
+	# Wrangle our parquet dataset in a DatasetDict
 	ds, labels = create_dataset()
+	# Fine-tune a SetFit model on our data, from a sentence-transformer checkpoint
 	model, test_dataset = train_setfit(ds, labels)
+	# Run inference
 	inference(model, labels, test_dataset)
 
 
