@@ -21,7 +21,7 @@ from outils_corpus.config import FIGURES_DIR, FULL_DATASET, MODELS_DIR
 app = typer.Typer()
 
 
-def create_dataset() -> tuple[Dataset, np.array]:
+def create_dataset() -> tuple[Dataset, list[str]]:
 	"""
 	Wrangle our data in the Dataset format
 
@@ -29,14 +29,15 @@ def create_dataset() -> tuple[Dataset, np.array]:
 	-------
 	ds : DatasetDict
 		The full dataset in train/val/test splits
-	labels: np.array
+	labels: list[str]
 		The list of gold labels
 	"""
 
 	# load our full dataset
 	df = pl.read_parquet(FULL_DATASET)
 
-	labels = np.sort(df.select("century").unique().to_series().to_numpy())
+	labels = sorted(df.select("century").unique().to_series().to_list())
+	labels = [str(label) for label in labels]
 
 	# Do an 80/20 train/eval stratified split
 	logger.info("Doing a 80/20 stratified train/eval split")
@@ -55,7 +56,7 @@ def create_dataset() -> tuple[Dataset, np.array]:
 	logger.info("Doing a 75/25 stratified val/test split")
 	df_val, df_test = split_into_train_eval(
 		df_eval,
-		eval_rel_size=0.2,
+		eval_rel_size=0.25,
 		stratify_by="century",
 		shuffle=True,
 		seed=42,
@@ -66,18 +67,46 @@ def create_dataset() -> tuple[Dataset, np.array]:
 
 	# Convert that to a Dataset
 	logger.info("Convert to a DatasetDict")
+	train_ds = Dataset.from_polars(
+		df_train.select(pl.col("text"), pl.col("century").alias("label")).cast({"label": pl.String})
+	)
+	# Encode the class labels as such (ClassLabel)
+	train_ds = train_ds.class_encode_column("label")
+
+	# Make sure we have full class representation...
+	df_val.extend(
+		pl.DataFrame(
+			{
+				"pg_num": [0, 0, 0],
+				"title": ["", "", ""],
+				"author": ["", "", ""],
+				"century": [1200, 1300, 1400],
+				"text": ["", "", ""],
+			},
+			schema={"pg_num": pl.UInt16, "title": None, "author": None, "century": pl.UInt16, "text": None},
+		)
+	)
+	val_ds = Dataset.from_polars(
+		df_val.select(pl.col("text"), pl.col("century").alias("label")).cast({"label": pl.String})
+	)
+	val_ds = val_ds.class_encode_column("label")
+
+	test_ds = Dataset.from_polars(
+		df_test.select(pl.col("text"), pl.col("century").alias("label")).cast({"label": pl.String})
+	)
+	test_ds = test_ds.class_encode_column("label")
 	ds = DatasetDict(
 		{
-			"train": Dataset.from_polars(df_train.select(pl.col("text"), pl.col("century").alias("label"))),
-			"val": Dataset.from_polars(df_val.select(pl.col("text"), pl.col("century").alias("label"))),
-			"test": Dataset.from_polars(df_test.select(pl.col("text"), pl.col("century").alias("label"))),
+			"train": train_ds,
+			"val": val_ds,
+			"test": test_ds,
 		}
 	)
 
 	return ds, labels
 
 
-def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, Dataset]:
+def train_setfit(dataset: DatasetDict, labels: list[str]) -> tuple[SetFitModel, Dataset]:
 	"""
 	Fine-tune a SentenceTransformer checkpoint via SetFit
 
@@ -85,7 +114,7 @@ def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, D
 	----------
 	dataset : DatasetDict
 		Input dataset in train/val/test splits, as returned by `create_dataset`
-	lavels : np.array
+	labels : list[str]
 		List of gold labels, as returned by `create_dataset`
 
 	Returns
@@ -101,10 +130,8 @@ def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, D
 	test_dataset = dataset["test"]
 
 	# Test on a small subset of data, because this is a hungry caterpillar...
-	tmp_train_dataset = train_dataset.select(range(75)).shuffle()
-	tmp_eval_dataset = eval_dataset.select(range(25)).shuffle()
-
-	# labels=labels
+	tmp_train_dataset = train_dataset.select(range(32)).shuffle()
+	tmp_eval_dataset = eval_dataset.select(range(12)).shuffle()
 
 	# NOTE: Make sure to use a checkpoint that was actually trained on French ;o)
 	checkpoint = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -122,7 +149,7 @@ def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, D
 		batch_size=4, num_epochs=2, eval_strategy="epoch", save_strategy="epoch", load_best_model_at_end=True
 	)
 
-	logger.info("Training a SetFit on our data")
+	logger.info("Training a SetFit on our data . . .")
 	trainer = Trainer(
 		model=model,
 		args=args,
@@ -136,7 +163,7 @@ def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, D
 	trainer.train()
 
 	# Save the model
-	trainer.save_model(MODELS_DIR / "simfit-trained")
+	trainer.model.save(MODELS_DIR / "simfit-trained")
 
 	return trainer.model, test_dataset
 
@@ -162,12 +189,12 @@ def calculate_f1_score(y_true: np.array, y_pred: np.array) -> dict[str, str]:
 	clf_dict = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
 	# Also dump it to text
 	report = classification_report(y_true, y_pred, zero_division=0)
-	(FIGURES_DIR / "SimFit-classification-report.txt").write_text(report)
+	(FIGURES_DIR / "SetFit-classification-report.txt").write_text(report)
 
 	return {"micro f1": clf_dict["micro avg"]["f1-score"], "macro f1": clf_dict["macro avg"]["f1-score"]}
 
 
-def inference(model: SetFitModel, test_dataset: Dataset, labels: np.array):
+def inference(model: SetFitModel, test_dataset: Dataset):
 	"""
 	Run inference on test data via our fine-tuned model
 
@@ -177,8 +204,6 @@ def inference(model: SetFitModel, test_dataset: Dataset, labels: np.array):
 		A trained SetFitModel
 	test_dataset : Dataset
 		The data to run inference on
-	labels : np.array
-		The list of gold labels
 	"""
 
 	# DataLoader for batching
@@ -190,7 +215,7 @@ def inference(model: SetFitModel, test_dataset: Dataset, labels: np.array):
 	actual_labels = [sample["label"] for sample in test_dataset]
 
 	# Generate predictions in batches
-	logger.info("Predicting...")
+	logger.info("Predicting . . .")
 	start_time = time.time()
 	for i, inputs in tqdm(enumerate(dataloader)):
 		predictions = model.predict(inputs["text"])
@@ -212,7 +237,7 @@ def main() -> None:
 	# Fine-tune a SetFit model on our data, from a sentence-transformer checkpoint
 	model, test_dataset = train_setfit(ds, labels)
 	# Run inference
-	inference(model, labels, test_dataset)
+	inference(model, test_dataset)
 
 
 if __name__ == "__main__":
