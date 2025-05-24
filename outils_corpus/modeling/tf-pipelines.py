@@ -163,7 +163,7 @@ def train_setfit(dataset: DatasetDict, labels: list[str]) -> tuple[SetFitModel, 
 	trainer.train()
 
 	# Save the model
-	trainer.model.save(MODELS_DIR / "simfit-trained")
+	trainer.model._save_pretrained(MODELS_DIR / "simfit-trained")
 
 	return trainer.model, test_dataset
 
