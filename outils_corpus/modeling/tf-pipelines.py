@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from tqdm.rich import tqdm
 import typer
 
-from outils_corpus.config import FIGURES_DIR, FULL_DATASET
+from outils_corpus.config import FIGURES_DIR, FULL_DATASET, MODELS_DIR
 
 app = typer.Typer()
 
@@ -134,6 +134,9 @@ def train_setfit(dataset: DatasetDict, labels: np.array) -> tuple[SetFitModel, D
 
 	# Finetune the model
 	trainer.train()
+
+	# Save the model
+	trainer.save_model(MODELS_DIR / "simfit-trained")
 
 	return trainer.model, test_dataset
 
