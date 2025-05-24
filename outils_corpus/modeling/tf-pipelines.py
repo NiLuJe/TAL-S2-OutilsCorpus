@@ -64,6 +64,8 @@ def create_dataset() -> tuple[Dataset, list[str]]:
 		as_lazy=False,
 		rel_size_deviation_tolerance=0.1,
 	)
+	# NOTE: df_val.group_by("century").len() to check the class distribution,
+	#       because we have some dangerously low popcounts in a few classes...
 
 	# Convert that to a Dataset
 	logger.info("Convert to a DatasetDict")
@@ -73,13 +75,14 @@ def create_dataset() -> tuple[Dataset, list[str]]:
 	# Encode the class labels as such (ClassLabel)
 	train_ds = train_ds.class_encode_column("label")
 
-	# Make sure we have full class representation...
+	# Make sure we have full class representation so the ClassLabel encoding is consistent across the splits...
 	df_val.extend(
 		pl.DataFrame(
 			{
 				"pg_num": [0, 0, 0],
 				"title": ["", "", ""],
 				"author": ["", "", ""],
+				# These three have extremely low pop count in df_eval (specifically, 1 ;)).
 				"century": [1200, 1300, 1400],
 				"text": ["", "", ""],
 			},
