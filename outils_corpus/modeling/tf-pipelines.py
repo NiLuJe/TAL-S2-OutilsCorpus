@@ -130,8 +130,11 @@ def train_setfit(dataset: DatasetDict, labels: list[str]) -> SetFitModel:
 	eval_dataset = dataset["val"]
 
 	# Test on a small subset of data, because this is a hungry caterpillar...
-	tmp_train_dataset = train_dataset.select(range(32)).shuffle()
-	tmp_eval_dataset = eval_dataset.select(range(12)).shuffle()
+	# NOTE: Besides the training time,
+	#       there's a step right before training that temporarily gobbles up a ginormous amount of RAM...
+	#       A larger sample size would require > 64GB of RAM.
+	tmp_train_dataset = train_dataset.select(range(100)).shuffle()
+	tmp_eval_dataset = eval_dataset.select(range(33)).shuffle()
 
 	# NOTE: Make sure to use a checkpoint that was actually trained on French ;o)
 	checkpoint = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -142,8 +145,8 @@ def train_setfit(dataset: DatasetDict, labels: list[str]) -> SetFitModel:
 		checkpoint, use_differentiable_head=True, head_params={"out_features": len(labels)}, labels=labels
 	)
 
-	# Team Red over here, and apparently my numpy build is borked, so can't test rocm ;'(
-	# model.to("cuda")
+	# Team Red over here, and ROCm doesn't really seem to help, so this is likely a noop on my machine...
+	model.to("cuda")
 
 	args = TrainingArguments(
 		batch_size=4, num_epochs=2, eval_strategy="epoch", save_strategy="epoch", load_best_model_at_end=True

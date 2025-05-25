@@ -35,8 +35,9 @@ def extract_features():
 
 	# Do an 80/20 train/test stratified split
 	logger.info("Doing a 80/20 stratified train/test split")
-	# NOTE: sklearn's train_test_split seems to be having a sad (segfault \o/)
-	#       when using stratify and a Polars DataFrame as input, so, use polars-splitters instead...
+	# NOTE: GCC 15.1 miscompiles numpy (c.f., numpy issue #28991),
+	#       so my initial approach with sklearn's train_test_split would segfault...
+	#       Hence why we're using polars-splitters ;).
 	# X_train, X_test, y_train, y_test = train_test_split(
 	# 	df, df.select("century"), test_size=0.2, random_state=42, shuffle=True, stratify=df.select("century").unique()
 	# )
